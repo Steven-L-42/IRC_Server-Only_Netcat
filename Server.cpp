@@ -70,7 +70,6 @@ void *Server::handle_client(void *arg)
 		else if (bytes_received == 0)
 		{
 			std::cout << user.username << " disconnected." << std::endl;
-
 			break;
 		}
 
