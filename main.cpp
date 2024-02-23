@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
 	if (argc != 2)
 		return (1);
-	Server server(std::atoi(argv[1]));
+	Server server(static_cast<int>(std::atoi(argv[1])));
 	try
 	{
 		server.start();
