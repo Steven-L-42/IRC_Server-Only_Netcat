@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 18:04:38 by slippert          #+#    #+#             */
-/*   Updated: 2024/02/24 12:40:29 by slippert         ###   ########.fr       */
+/*   Updated: 2024/02/25 21:33:18 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,17 @@ void Server::srvInit()
 	funnyUsernames.push("Lachender Wal");
 	funnyUsernames.push("Trockener Humor");
 	funnyUsernames.push("Gewürzgurke97");
+
+	textColors.push(red);
+	textColors.push(yellow);
+	textColors.push(cyan);
+	textColors.push(magenta);
+	textColors.push(black);
+	textColors.push(bright_red);
+	textColors.push(bright_yellow);
+	textColors.push(bright_black);
+	textColors.push(bright_cyan);
+	textColors.push(bright_magenta);
 
 	if ((_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 		throw(std::runtime_error("Error: socket"));
@@ -103,14 +114,24 @@ void Server::recvSignal()
 	for (_itClient = Clients.begin(); _itClient != Clients.end(); _itClient++)
 	{
 		char buffer[1024];
-		ssize_t bytes_received = recv(_itClient->second.socket, buffer, sizeof(buffer), 0);
+
+		ssize_t bytes_received = recv(_itClient->first, buffer, sizeof(buffer), 0);
 		if (bytes_received == -1)
 			continue;
 		else if (bytes_received == 0)
 		{
-			std::cout << blue + _itClient->second.username + white + " disconnected." << std::endl;
-			close(_itClient->second.socket);
+			std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
+			std::string msg = white + std::string("User: ") + _itClient->second.textColor + _itClient->second.username + res + " disconnected." + res;
+			std::cout << msg << std::endl;
+			UserInfo info;
+			info.socket = _itClient->first;
+			info.username = _itClient->second.username;
+			info.message = userPrefix + msg;
+			info.isLeaving = true;
+			MultiMessages.insert(std::make_pair(_itClient->first, info));
+			close(_itClient->first);
 			_itClient->second.socket = -1;
+			continue;
 		}
 
 		buffer[bytes_received] = '\0';
@@ -119,39 +140,101 @@ void Server::recvSignal()
 
 		std::vector<std::string> commands = split_buffer(buffer);
 
-		if (commands.size() == 2)
-		{
-			if (commands[0] == "NICK")
-			{
-				std::cout << blue << "Server ➤ " << white << "User: " << _itClient->second.username << res << " has changed his name to ";
-				_itClient->second.username = commands[1];
-				std::cout << white << _itClient->second.username << res << std::endl;
-				continue;
-			}
-		}
-		std::string userPrefix = green + _itClient->second.username + " ➤ " + res;
+		if (checkCommand(_itClient, commands))
+			continue;
+
+		std::string userPrefix = _itClient->second.textColor + _itClient->second.username + " ➤ " + res;
 		UserInfo info;
-		info.socket = _itClient->second.socket;
+		info.socket = _itClient->first;
 		info.username = _itClient->second.username;
 		info.message = userPrefix + std::string(buffer);
-		Messages[_itClient->second.socket] = info;
+		info.escapen = true;
+		MultiMessages.insert(std::make_pair(_itClient->first, info));
+	}
+}
+
+bool Server::checkCommand(iter client, std::vector<std::string> commands)
+{
+	typedef void (Server::*CommandFunction)(iter client, std::vector<std::string>);
+
+	std::map<std::string, CommandFunction> commandDispatch;
+	commandDispatch["NICK"] = &Server::changeNickname;
+	commandDispatch["WHO"] = &Server::listAllUsers;
+
+	std::transform(commands[0].begin(), commands[0].end(), commands[0].begin(), ::toupper);
+
+	for (std::map<std::string, CommandFunction>::iterator it = commandDispatch.begin(); it != commandDispatch.end(); it++)
+	{
+		if (it->first == commands[0])
+		{
+			(this->*(it->second))(client, commands);
+			return true;
+		}
+	}
+	return (false);
+}
+
+void Server::changeNickname(iter client, std::vector<std::string> commands)
+{
+	std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
+	std::string msg = white + std::string("User: ") + client->second.textColor + client->second.username + res + " has changed his name to " + client->second.textColor + commands[1] + res;
+	client->second.username = commands[1];
+	std::cout << userPrefix << msg << std::endl;
+	UserInfo info;
+	info.socket = client->first;
+	info.username = client->second.username;
+	info.message = userPrefix + msg;
+	info.escapen = true;
+	info.isCmd = false;
+	MultiMessages.insert(std::make_pair(client->first, info));
+}
+
+void Server::listAllUsers(iter client, std::vector<std::string> commands)
+{
+	iter it;
+	UserInfo info;
+	commands[1] = commands[1];
+	std::string activeUsers = "~ " + itoa(Clients.size()) + (Clients.size() == 1 ? " active User ~" : " active Users ~");
+	info.message = blue + activeUsers + res;
+	info.isCmd = true;
+	MultiMessages.insert(std::make_pair(client->first, info));
+	for (it = Clients.begin(); it != Clients.end(); it++)
+	{
+		UserInfo info;
+		info.message = it->second.textColor + it->second.username + res;
+		info.isCmd = true;
+		MultiMessages.insert(std::make_pair(client->first, info));
 	}
 }
 
 void Server::sendSignal()
 {
-	for (_itMessages = Messages.begin(); _itMessages != Messages.end(); _itMessages++)
+
+	for (_itMessages = MultiMessages.begin(); _itMessages != MultiMessages.end(); _itMessages++)
 	{
 		for (_itReceiver = Clients.begin(); _itReceiver != Clients.end(); _itReceiver++)
 		{
-			if (_itMessages->second.socket == _itReceiver->second.socket)
+			if (_itReceiver->second.socket == -1)
 				continue;
-			ssize_t bytes_send = send(_itReceiver->second.socket, _itMessages->second.message.c_str(), _itMessages->second.message.size(), 0);
+			if ((_itMessages->second.isCmd) && _itMessages->first != _itReceiver->first)
+				continue;
+
+			std::string message;
+
+			if (_itMessages->first == _itReceiver->first && _itMessages->second.escapen)
+				message = ANSIESCAPE + _itMessages->second.message;
+			else
+				message = _itMessages->second.message;
+
+			if (message.back() != '\n')
+				message += "\n";
+
+			ssize_t bytes_send = send(_itReceiver->second.socket, message.c_str(), message.size(), 0);
 			if (bytes_send == -1)
-				throw(std::runtime_error("Error: send"));
+				std::cerr << "Error: send msg: " << message;
 		}
 	}
-	Messages.clear();
+	MultiMessages.clear();
 }
 
 void Server::userJoined(int clientSocket)
@@ -159,11 +242,14 @@ void Server::userJoined(int clientSocket)
 	UserInfo newUser;
 	newUser.socket = clientSocket;
 	newUser.username = funnyUsernames.top();
-	newUser.message = blue + newUser.username + green + " joined the channel\n" + res;
+	newUser.message = blue + newUser.username + green + " joined the channel" + res;
+	newUser.textColor = textColors.top();
+
 	Clients[clientSocket] = newUser;
-	Messages[clientSocket] = newUser;
+	MultiMessages.insert(std::make_pair(clientSocket, newUser));
 	funnyUsernames.pop();
-	std::cout << newUser.message;
+	textColors.pop();
+	std::cout << newUser.message << std::endl;
 }
 
 std::string Server::itoa(int i)
