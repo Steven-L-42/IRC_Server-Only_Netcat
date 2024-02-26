@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 18:04:38 by slippert          #+#    #+#             */
-/*   Updated: 2024/02/25 21:33:18 by slippert         ###   ########.fr       */
+/*   Updated: 2024/02/26 13:27:07 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,7 +80,7 @@ void Server::srvLstn()
 	fd_set read_set;
 	struct timeval timeout;
 
-	while (1)
+	forever
 	{
 		timeout.tv_sec = 0;
 		timeout.tv_usec = 10000;
@@ -106,6 +106,7 @@ void Server::srvLstn()
 		}
 		recvSignal();
 		sendSignal();
+		removeUsers();
 	}
 }
 
@@ -116,21 +117,24 @@ void Server::recvSignal()
 		char buffer[1024];
 
 		ssize_t bytes_received = recv(_itClient->first, buffer, sizeof(buffer), 0);
+		std::string currentTime = getCurTime();
 		if (bytes_received == -1)
 			continue;
 		else if (bytes_received == 0)
 		{
-			std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
-			std::string msg = white + std::string("User: ") + _itClient->second.textColor + _itClient->second.username + res + " disconnected." + res;
-			std::cout << msg << std::endl;
+			std::string msg = res + std::string("User: ") + _itClient->second.textColor + _itClient->second.username + res + " disconnected." + res;
+			std::cout << SERVER_PREFIX << msg << std::endl;
 			UserInfo info;
 			info.socket = _itClient->first;
 			info.username = _itClient->second.username;
-			info.message = userPrefix + msg;
+			info.message = SERVER_PREFIX + msg;
 			info.isLeaving = true;
+			info.isCmd = false;
 			MultiMessages.insert(std::make_pair(_itClient->first, info));
 			close(_itClient->first);
 			_itClient->second.socket = -1;
+			chatHistory.push_back(info.message);
+			//_itClient = Clients.erase(_itClient);
 			continue;
 		}
 
@@ -144,22 +148,28 @@ void Server::recvSignal()
 			continue;
 
 		std::string userPrefix = _itClient->second.textColor + _itClient->second.username + " ➤ " + res;
+		std::cout << currentTime + userPrefix + std::string(buffer);
 		UserInfo info;
 		info.socket = _itClient->first;
 		info.username = _itClient->second.username;
-		info.message = userPrefix + std::string(buffer);
+		info.message = currentTime + userPrefix + std::string(buffer);
 		info.escapen = true;
+		info.isCmd = false;
 		MultiMessages.insert(std::make_pair(_itClient->first, info));
+		chatHistory.push_back(info.message);
 	}
 }
 
 bool Server::checkCommand(iter client, std::vector<std::string> commands)
 {
-	typedef void (Server::*CommandFunction)(iter client, std::vector<std::string>);
+	typedef bool (Server::*CommandFunction)(iter client, std::vector<std::string>);
 
 	std::map<std::string, CommandFunction> commandDispatch;
+	commandDispatch["HELP"] = &Server::showCommands;
+	commandDispatch["KICK"] = &Server::kickUser;
 	commandDispatch["NICK"] = &Server::changeNickname;
 	commandDispatch["WHO"] = &Server::listAllUsers;
+	commandDispatch["ALL"] = &Server::serverAnnounce;
 
 	std::transform(commands[0].begin(), commands[0].end(), commands[0].begin(), ::toupper);
 
@@ -167,30 +177,46 @@ bool Server::checkCommand(iter client, std::vector<std::string> commands)
 	{
 		if (it->first == commands[0])
 		{
-			(this->*(it->second))(client, commands);
-			return true;
+			if ((this->*(it->second))(client, commands))
+				return (true);
+			else
+				return (false);
 		}
 	}
 	return (false);
 }
 
-void Server::changeNickname(iter client, std::vector<std::string> commands)
+bool Server::changeNickname(iter client, std::vector<std::string> commands)
 {
-	std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
-	std::string msg = white + std::string("User: ") + client->second.textColor + client->second.username + res + " has changed his name to " + client->second.textColor + commands[1] + res;
-	client->second.username = commands[1];
-	std::cout << userPrefix << msg << std::endl;
+	if (commands.size() < 2)
+		return (false);
+	std::vector<std::string>::iterator iterCmd = commands.begin();
+	iterCmd++;
+	std::string newName = "";
+
+	for (; iterCmd != commands.end() && iterCmd != commands.begin() + 3; iterCmd++)
+		newName += *iterCmd + (iterCmd + 1 != commands.end() ? " " : "");
+	newName = trim_whitespace(newName);
+
+	std::string msg = std::string("User: ") + client->second.textColor + client->second.username + res + " has changed his name to " + client->second.textColor + newName + res;
+
+	client->second.username = newName;
+	std::cout << SERVER_PREFIX << msg << std::endl;
 	UserInfo info;
 	info.socket = client->first;
 	info.username = client->second.username;
-	info.message = userPrefix + msg;
+	info.message = SERVER_PREFIX + msg;
 	info.escapen = true;
 	info.isCmd = false;
 	MultiMessages.insert(std::make_pair(client->first, info));
+	chatHistory.push_back(info.message);
+	return (true);
 }
 
-void Server::listAllUsers(iter client, std::vector<std::string> commands)
+bool Server::listAllUsers(iter client, std::vector<std::string> commands)
 {
+	if (commands.size() != 1)
+		return (false);
 	iter it;
 	UserInfo info;
 	commands[1] = commands[1];
@@ -205,11 +231,108 @@ void Server::listAllUsers(iter client, std::vector<std::string> commands)
 		info.isCmd = true;
 		MultiMessages.insert(std::make_pair(client->first, info));
 	}
+	return (true);
+}
+
+bool Server::showCommands(iter client, std::vector<std::string> commands)
+{
+	if (commands.size() != 1)
+		return (false);
+	std::vector<std::string>::iterator it;
+	UserInfo info;
+	commands[1] = commands[1];
+	std::vector<std::string> cmdList;
+	cmdList.push_back("HELP" + std::string(res) + "\t- List all available commands. [HELP]");
+	cmdList.push_back("KICK" + std::string(res) + "\t- kick called user. [KICK <username>]");
+	cmdList.push_back("NICK" + std::string(res) + "\t- change your username. [NICK <new_username>]");
+	cmdList.push_back("WHO" + std::string(res) + "\t- List all active users. [WHO]");
+	cmdList.push_back("ALL" + std::string(res) + "\t- Send server announcement. [ALL <announcement>]");
+
+	std::string header = "~ Commandlist ~";
+	info.message = blue + header + res;
+	info.escapen = false;
+	info.isCmd = true;
+	MultiMessages.insert(std::make_pair(client->first, info));
+	for (it = cmdList.begin(); it != cmdList.end(); it++)
+	{
+		UserInfo info;
+		info.message = orange + *it + res;
+		info.escapen = false;
+		info.isCmd = true;
+		MultiMessages.insert(std::make_pair(client->first, info));
+	}
+	return (true);
+}
+
+bool Server::kickUser(iter client, std::vector<std::string> commands)
+{
+	if (commands.size() < 2)
+		return (false);
+	std::string newName = "";
+	std::vector<std::string>::iterator iterCmd = commands.begin();
+	iterCmd++;
+
+	for (; iterCmd != commands.end() && iterCmd != commands.begin() + 3; iterCmd++)
+		newName += *iterCmd + (iterCmd + 1 != commands.end() ? " " : "");
+	newName = trim_whitespace(newName);
+
+	iter itSearch;
+	for (itSearch = Clients.begin(); itSearch != Clients.end(); itSearch++)
+		if (itSearch->second.username == newName)
+			break;
+	if (itSearch == Clients.end())
+		return (false);
+	std::string msg = res + std::string("User: ") + itSearch->second.textColor + itSearch->second.username + res + " was kicked by " + client->second.textColor + client->second.username + res;
+	std::cout << SERVER_PREFIX << msg << std::endl;
+	UserInfo info;
+	info.socket = _itClient->first;
+	info.username = _itClient->second.username;
+	info.message = SERVER_PREFIX + msg;
+	info.isLeaving = true;
+	info.isCmd = false;
+	MultiMessages.insert(std::make_pair(_itClient->first, info));
+	close(itSearch->first);
+	itSearch->second.socket = -1;
+	chatHistory.push_back(info.message);
+	return (true);
+}
+
+void Server::removeUsers()
+{
+	iter itRemove;
+	for (itRemove = Clients.begin(); itRemove != Clients.end();)
+	{
+		if (itRemove->second.socket == -1)
+			itRemove = Clients.erase(itRemove);
+		else
+			++itRemove;
+	}
+}
+
+bool Server::serverAnnounce(iter client, std::vector<std::string> commands)
+{
+	if (commands.size() < 2)
+		return (false);
+	std::string newAnnounce = "";
+	std::vector<std::string>::iterator iterCmd = commands.begin();
+	iterCmd++;
+
+	for (; iterCmd != commands.end(); iterCmd++)
+		newAnnounce += *iterCmd + (iterCmd + 1 != commands.end() ? " " : "");
+	newAnnounce = trim_whitespace(newAnnounce);
+
+	UserInfo info;
+	info.socket = client->first;
+	info.message = SERVER_PREFIX + newAnnounce;
+	info.isCmd = false;
+	MultiMessages.insert(std::make_pair(client->first, info));
+	chatHistory.push_back(info.message);
+	std::cout << info.message << std::endl;
+	return (true);
 }
 
 void Server::sendSignal()
 {
-
 	for (_itMessages = MultiMessages.begin(); _itMessages != MultiMessages.end(); _itMessages++)
 	{
 		for (_itReceiver = Clients.begin(); _itReceiver != Clients.end(); _itReceiver++)
@@ -229,7 +352,7 @@ void Server::sendSignal()
 			if (message.back() != '\n')
 				message += "\n";
 
-			ssize_t bytes_send = send(_itReceiver->second.socket, message.c_str(), message.size(), 0);
+			ssize_t bytes_send = send(_itReceiver->first, message.c_str(), message.size(), 0);
 			if (bytes_send == -1)
 				std::cerr << "Error: send msg: " << message;
 		}
@@ -237,19 +360,57 @@ void Server::sendSignal()
 	MultiMessages.clear();
 }
 
+void Server::sendHistory(int clientSocket)
+{
+	iter client = Clients.find(clientSocket);
+	for (_itHistory = chatHistory.begin(); _itHistory != chatHistory.end(); _itHistory++)
+	{
+		std::string message;
+		message = *_itHistory;
+
+		if (message.back() != '\n')
+			message += "\n";
+
+		ssize_t bytes_send = send(client->first, message.c_str(), message.size(), 0);
+		if (bytes_send == -1)
+			std::cerr << "Error: send msg: " << message;
+	}
+}
+
 void Server::userJoined(int clientSocket)
 {
+	std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
 	UserInfo newUser;
 	newUser.socket = clientSocket;
+	newUser.isCmd = false;
 	newUser.username = funnyUsernames.top();
-	newUser.message = blue + newUser.username + green + " joined the channel" + res;
 	newUser.textColor = textColors.top();
-
+	newUser.message = userPrefix + std::string("User: ") + newUser.textColor + newUser.username + res + " joined the channel.";
 	Clients[clientSocket] = newUser;
 	MultiMessages.insert(std::make_pair(clientSocket, newUser));
 	funnyUsernames.pop();
 	textColors.pop();
 	std::cout << newUser.message << std::endl;
+	sendHistory(clientSocket);
+	chatHistory.push_back(newUser.message);
+}
+
+std::string Server::getCurTime()
+{
+	time_t now = time(0);
+	tm *ltm = localtime(&now);
+
+	std::ostringstream ssHour;
+	ssHour << (ltm->tm_hour);
+	std::ostringstream ssMin;
+	ssMin << (ltm->tm_min);
+	std::ostringstream ssSec;
+	ssSec << (ltm->tm_sec);
+	std::string hour((ltm->tm_hour < 10 ? "0" + ssHour.str() : ssHour.str()));
+	std::string min((ltm->tm_min < 10 ? "0" + ssMin.str() : ssMin.str()));
+	std::string sec((ltm->tm_sec < 10 ? "0" + ssSec.str() : ssSec.str()));
+	std::string localTime = "[" + hour + ":" + min + ":" + sec + "] ";
+	return (localTime);
 }
 
 std::string Server::itoa(int i)
