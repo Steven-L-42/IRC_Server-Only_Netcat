@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 18:04:38 by slippert          #+#    #+#             */
-/*   Updated: 2024/02/26 13:27:07 by slippert         ###   ########.fr       */
+/*   Updated: 2024/02/26 19:49:57 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,28 +29,6 @@ void Server::start()
 
 void Server::srvInit()
 {
-	funnyUsernames.push("Fröhlicher Frosch");
-	funnyUsernames.push("Tanzende Tomate");
-	funnyUsernames.push("Kichernder Kranich");
-	funnyUsernames.push("Lustige Libelle");
-	funnyUsernames.push("Strahlende Schildkröte");
-	funnyUsernames.push("Witzige Wurzel");
-	funnyUsernames.push("Kichernde Kaktus");
-	funnyUsernames.push("Tanzende Gurke");
-	funnyUsernames.push("Lachender Wal");
-	funnyUsernames.push("Trockener Humor");
-	funnyUsernames.push("Gewürzgurke97");
-
-	textColors.push(red);
-	textColors.push(yellow);
-	textColors.push(cyan);
-	textColors.push(magenta);
-	textColors.push(black);
-	textColors.push(bright_red);
-	textColors.push(bright_yellow);
-	textColors.push(bright_black);
-	textColors.push(bright_cyan);
-	textColors.push(bright_magenta);
 
 	if ((_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 		throw(std::runtime_error("Error: socket"));
@@ -134,7 +112,6 @@ void Server::recvSignal()
 			close(_itClient->first);
 			_itClient->second.socket = -1;
 			chatHistory.push_back(info.message);
-			//_itClient = Clients.erase(_itClient);
 			continue;
 		}
 
@@ -166,10 +143,13 @@ bool Server::checkCommand(iter client, std::vector<std::string> commands)
 
 	std::map<std::string, CommandFunction> commandDispatch;
 	commandDispatch["HELP"] = &Server::showCommands;
+	commandDispatch["INFO"] = &Server::listAllInfo;
 	commandDispatch["KICK"] = &Server::kickUser;
 	commandDispatch["NICK"] = &Server::changeNickname;
 	commandDispatch["WHO"] = &Server::listAllUsers;
 	commandDispatch["ALL"] = &Server::serverAnnounce;
+	commandDispatch["COLORS"] = &Server::listAllColors;
+	commandDispatch["COL"] = &Server::changeColor;
 
 	std::transform(commands[0].begin(), commands[0].end(), commands[0].begin(), ::toupper);
 
@@ -190,6 +170,26 @@ bool Server::changeNickname(iter client, std::vector<std::string> commands)
 {
 	if (commands.size() < 2)
 		return (false);
+	iter itNames;
+	std::string msgTaken = "Username already taken!\n";
+	UserInfo alreadyTaken;
+	alreadyTaken.message = orange + std::string("Privat ➤ ") + res + msgTaken + res;
+	alreadyTaken.isCmd = true;
+	alreadyTaken.escapen = true;
+	for (itNames = Clients.begin(); itNames != Clients.end(); itNames++)
+	{
+		if (commands.size() == 2 && itNames->second.username == commands[1])
+		{
+			MultiMessages.insert(std::make_pair(client->first, alreadyTaken));
+			return (false);
+		}
+		else if (commands.size() == 3 && itNames->second.username == commands[1] + " " + commands[2])
+		{
+			MultiMessages.insert(std::make_pair(client->first, alreadyTaken));
+			return (false);
+		}
+	}
+
 	std::vector<std::string>::iterator iterCmd = commands.begin();
 	iterCmd++;
 	std::string newName = "";
@@ -213,6 +213,88 @@ bool Server::changeNickname(iter client, std::vector<std::string> commands)
 	return (true);
 }
 
+bool Server::changeColor(iter client, std::vector<std::string> commands)
+{
+	int colNbr = std::atoi(commands[1].c_str());
+	if (commands.size() != 2 || colNbr < 1 || colNbr > 255)
+		return (false);
+	std::vector<std::string>::iterator iterCmd = commands.begin();
+	iterCmd++;
+
+	std::string newColor(b_empty + commands[1] + "m");
+	std::string msg = std::string("User: ") + client->second.textColor + client->second.username + res + " has changed his color to " + newColor + commands[1] + res;
+	client->second.colNbr = colNbr;
+	client->second.textColor = newColor;
+	std::cout << SERVER_PREFIX << msg << std::endl;
+	UserInfo info;
+	info.socket = client->first;
+	info.username = client->second.username;
+	info.message = SERVER_PREFIX + msg;
+	info.escapen = true;
+	info.isCmd = false;
+	MultiMessages.insert(std::make_pair(client->first, info));
+	chatHistory.push_back(info.message);
+	return (true);
+}
+
+bool Server::listAllColors(iter client, std::vector<std::string> commands)
+{
+	if (commands.size() != 1)
+		return (false);
+	iter it;
+	UserInfo info;
+	commands[1] = commands[1];
+	std::string activeUsers = "~ Colors from 1 - 255 ~";
+	info.message = blue + activeUsers + res;
+	info.isCmd = true;
+	info.escapen = true;
+	MultiMessages.insert(std::make_pair(client->first, info));
+
+	std::string msg = "";
+	for (int i = 1; i <= 255; i++)
+	{
+		msg += std::string(b_empty + itoa(i)) + "m" + std::string(itoa(i)) + res + "\t";
+		if (i % 5 == 0)
+		{
+			UserInfo info;
+			info.isCmd = true;
+			info.escapen = false;
+			info.message = msg;
+			MultiMessages.insert(std::make_pair(client->first, info));
+			msg = "";
+		}
+	}
+	return (true);
+}
+
+bool Server::listAllInfo(iter client, std::vector<std::string> commands)
+{
+	if (commands.size() != 1)
+		return (false);
+	iter it;
+	UserInfo info;
+	commands[1] = commands[1];
+	std::string activeUsers = "~ Your Credentials ~";
+	info.message = blue + activeUsers + res;
+	info.isCmd = true;
+	info.escapen = true;
+	MultiMessages.insert(std::make_pair(client->first, info));
+
+	std::string msg = "";
+
+	msg += "Socket ID: " + itoa(client->first) + "\n";
+	msg += "Username: " + client->second.username + "\n";
+	msg += "Color: " + client->second.textColor + itoa(client->second.colNbr) + "\n" + res;
+
+	UserInfo info2;
+	info2.isCmd = true;
+	info2.escapen = false;
+	info2.message = msg;
+	MultiMessages.insert(std::make_pair(client->first, info2));
+
+	return (true);
+}
+
 bool Server::listAllUsers(iter client, std::vector<std::string> commands)
 {
 	if (commands.size() != 1)
@@ -222,6 +304,7 @@ bool Server::listAllUsers(iter client, std::vector<std::string> commands)
 	commands[1] = commands[1];
 	std::string activeUsers = "~ " + itoa(Clients.size()) + (Clients.size() == 1 ? " active User ~" : " active Users ~");
 	info.message = blue + activeUsers + res;
+	info.escapen = true;
 	info.isCmd = true;
 	MultiMessages.insert(std::make_pair(client->first, info));
 	for (it = Clients.begin(); it != Clients.end(); it++)
@@ -229,6 +312,7 @@ bool Server::listAllUsers(iter client, std::vector<std::string> commands)
 		UserInfo info;
 		info.message = it->second.textColor + it->second.username + res;
 		info.isCmd = true;
+		info.escapen = false;
 		MultiMessages.insert(std::make_pair(client->first, info));
 	}
 	return (true);
@@ -238,15 +322,20 @@ bool Server::showCommands(iter client, std::vector<std::string> commands)
 {
 	if (commands.size() != 1)
 		return (false);
+
 	std::vector<std::string>::iterator it;
 	UserInfo info;
 	commands[1] = commands[1];
+
 	std::vector<std::string> cmdList;
 	cmdList.push_back("HELP" + std::string(res) + "\t- List all available commands. [HELP]");
+	cmdList.push_back("INFO" + std::string(res) + "\t- List all personal informations. [INFO]");
 	cmdList.push_back("KICK" + std::string(res) + "\t- kick called user. [KICK <username>]");
 	cmdList.push_back("NICK" + std::string(res) + "\t- change your username. [NICK <new_username>]");
 	cmdList.push_back("WHO" + std::string(res) + "\t- List all active users. [WHO]");
 	cmdList.push_back("ALL" + std::string(res) + "\t- Send server announcement. [ALL <announcement>]");
+	cmdList.push_back("COLORS" + std::string(res) + "\t- List all available colors. [COLORS]");
+	cmdList.push_back("COL" + std::string(res) + "\t- set text color from 1 to 255. [COL <nbr>]");
 
 	std::string header = "~ Commandlist ~";
 	info.message = blue + header + res;
@@ -379,17 +468,20 @@ void Server::sendHistory(int clientSocket)
 
 void Server::userJoined(int clientSocket)
 {
+	std::srand(time(0));
+	int rand = std::rand() % 256;
+
 	std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
 	UserInfo newUser;
 	newUser.socket = clientSocket;
 	newUser.isCmd = false;
-	newUser.username = funnyUsernames.top();
-	newUser.textColor = textColors.top();
+	newUser.username = "Nick#" + itoa(clientSocket - 3);
+	newUser.colNbr = rand;
+	newUser.textColor = b_empty + itoa(rand) + std::string("m");
 	newUser.message = userPrefix + std::string("User: ") + newUser.textColor + newUser.username + res + " joined the channel.";
 	Clients[clientSocket] = newUser;
 	MultiMessages.insert(std::make_pair(clientSocket, newUser));
-	funnyUsernames.pop();
-	textColors.pop();
+
 	std::cout << newUser.message << std::endl;
 	sendHistory(clientSocket);
 	chatHistory.push_back(newUser.message);
