@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:31:45 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 13:35:49 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/08 15:22:31 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,12 +32,12 @@ public:
 	std::map<int, UserInfo> Clients;
 	std::map<int, UserInfo> Messages;
 	std::multimap<int, UserInfo> MultiMessages;
-	std::vector<std::string> chatHistory;
-	std::vector<std::string>::iterator _itHistory;
+	std::vector<UserInfo> chatHistory;
+	std::vector<UserInfo>::iterator _itHistory;
 
 	void recvSignal();
 	void sendSignal();
-	void sendHistory(int clientSocket);
+	void sendHistory(int clientSocket, int channel);
 	void removeUsers();
-	void userJoined(int clientSocket);
+	void userJoined(int clientSocket, int channel);
 };

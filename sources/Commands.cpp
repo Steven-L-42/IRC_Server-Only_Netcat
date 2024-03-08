@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:07:03 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 13:45:47 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/08 15:42:18 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,17 @@ Commands::~Commands()
 {
 }
 
+bool Commands::joinChannel(iter client, std::vector<std::string> commands, MsgSystem &msgSystem)
+{
+	if (commands.size() != 2)
+		return (false);
+
+	int channel = static_cast<int>(std::atoi(commands[1].c_str()));
+	msgSystem.userJoined(client->first, channel);
+
+	return (true);
+}
+
 bool Commands::showCommands(iter client, std::vector<std::string> commands, MsgSystem &msgSystem)
 {
 	if (commands.size() != 1)
@@ -31,6 +42,7 @@ bool Commands::showCommands(iter client, std::vector<std::string> commands, MsgS
 
 	std::vector<std::string> cmdList;
 	cmdList.push_back("HELP" + std::string(res) + "\t- List all available commands. [HELP]");
+	cmdList.push_back("JOIN" + std::string(res) + "\t- Join channel. [JOIN <nbr>]");
 	cmdList.push_back("INFO" + std::string(res) + "\t- List all personal informations. [INFO]");
 	cmdList.push_back("KICK" + std::string(res) + "\t- kick called user. [KICK <username>]");
 	cmdList.push_back("NICK" + std::string(res) + "\t- change your username. [NICK <new_username>]");
@@ -41,6 +53,7 @@ bool Commands::showCommands(iter client, std::vector<std::string> commands, MsgS
 
 	std::string header = "~ Commandlist ~";
 	info.message = blue + header + res;
+	info.channel = client->second.channel;
 	info.escapen = false;
 	info.isCmd = true;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
@@ -48,6 +61,7 @@ bool Commands::showCommands(iter client, std::vector<std::string> commands, MsgS
 	{
 		UserInfo info;
 		info.message = orange + *it + res;
+		info.channel = client->second.channel;
 		info.escapen = false;
 		info.isCmd = true;
 		msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
@@ -75,17 +89,18 @@ bool Commands::kickUser(iter client, std::vector<std::string> commands, MsgSyste
 	if (itSearch == msgSystem.Clients.end())
 		return (false);
 	std::string msg = res + std::string("User: ") + itSearch->second.textColor + itSearch->second.username + res + " was kicked by " + client->second.textColor + client->second.username + res;
-	std::cout << SERVER_PREFIX << msg << std::endl;
+	std::cout << "CH: " << client->second.channel << " " << SERVER_PREFIX << msg << std::endl;
 	UserInfo info;
 	info.socket = _itClient->first;
 	info.username = _itClient->second.username;
 	info.message = SERVER_PREFIX + msg;
+	info.channel = client->second.channel;
 	info.isLeaving = true;
 	info.isCmd = false;
 	msgSystem.MultiMessages.insert(std::make_pair(_itClient->first, info));
 	close(itSearch->first);
 	itSearch->second.socket = -1;
-	msgSystem.chatHistory.push_back(info.message);
+	msgSystem.chatHistory.push_back(info);
 	return (true);
 }
 
@@ -101,15 +116,16 @@ bool Commands::changeColor(iter client, std::vector<std::string> commands, MsgSy
 	std::string msg = std::string("User: ") + client->second.textColor + client->second.username + res + " has changed his color to " + newColor + commands[1] + res;
 	client->second.colNbr = colNbr;
 	client->second.textColor = newColor;
-	std::cout << SERVER_PREFIX << msg << std::endl;
+	std::cout << "CH: " << client->second.channel << " " << SERVER_PREFIX << msg << std::endl;
 	UserInfo info;
 	info.socket = client->first;
 	info.username = client->second.username;
 	info.message = SERVER_PREFIX + msg;
+	info.channel = client->second.channel;
 	info.escapen = true;
 	info.isCmd = false;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
-	msgSystem.chatHistory.push_back(info.message);
+	msgSystem.chatHistory.push_back(info);
 	return (true);
 }
 
@@ -122,6 +138,7 @@ bool Commands::changeNickname(iter client, std::vector<std::string> commands, Ms
 	UserInfo alreadyTaken;
 	alreadyTaken.message = orange + std::string("Privat ➤ ") + res + msgTaken + res;
 	alreadyTaken.isCmd = true;
+	alreadyTaken.channel = client->second.channel;
 	alreadyTaken.escapen = true;
 	for (itNames = msgSystem.Clients.begin(); itNames != msgSystem.Clients.end(); itNames++)
 	{
@@ -148,15 +165,16 @@ bool Commands::changeNickname(iter client, std::vector<std::string> commands, Ms
 	std::string msg = std::string("User: ") + client->second.textColor + client->second.username + res + " has changed his name to " + client->second.textColor + newName + res;
 
 	client->second.username = newName;
-	std::cout << SERVER_PREFIX << msg << std::endl;
+	std::cout << "CH: " << client->second.channel << " " << SERVER_PREFIX << msg << std::endl;
 	UserInfo info;
 	info.socket = client->first;
 	info.username = client->second.username;
 	info.message = SERVER_PREFIX + msg;
+	info.channel = client->second.channel;
 	info.escapen = true;
 	info.isCmd = false;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
-	msgSystem.chatHistory.push_back(info.message);
+	msgSystem.chatHistory.push_back(info);
 	return (true);
 }
 
@@ -176,9 +194,10 @@ bool Commands::serverAnnounce(iter client, std::vector<std::string> commands, Ms
 	info.socket = client->first;
 	info.message = SERVER_PREFIX + newAnnounce;
 	info.isCmd = false;
+	info.channel = client->second.channel;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
-	msgSystem.chatHistory.push_back(info.message);
-	std::cout << info.message << std::endl;
+	msgSystem.chatHistory.push_back(info);
+	std::cout << "CH: " << client->second.channel << " " << info.message << std::endl;
 	return (true);
 }
 
@@ -186,6 +205,7 @@ bool Commands::checkCommand(iter client, std::vector<std::string> commands, MsgS
 {
 	typedef bool (Commands::*CommandFunction)(iter client, std::vector<std::string>, MsgSystem &msgSystem);
 	std::map<std::string, CommandFunction> commandDispatch;
+	commandDispatch["JOIN"] = &Commands::joinChannel;
 	commandDispatch["HELP"] = &Commands::showCommands;
 	commandDispatch["INFO"] = &Commands::listAllInfo;
 	commandDispatch["KICK"] = &Commands::kickUser;
@@ -218,6 +238,7 @@ bool Commands::listAllColors(iter client, std::vector<std::string> commands, Msg
 	commands[1] = commands[1];
 	std::string activeUsers = "~ Colors from 1 - 255 ~";
 	info.message = blue + activeUsers + res;
+	info.channel = client->second.channel;
 	info.isCmd = true;
 	info.escapen = true;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
@@ -231,6 +252,7 @@ bool Commands::listAllColors(iter client, std::vector<std::string> commands, Msg
 			UserInfo info;
 			info.isCmd = true;
 			info.escapen = false;
+			info.channel = client->second.channel;
 			info.message = msg;
 			msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
 			msg = "";
@@ -248,6 +270,7 @@ bool Commands::listAllInfo(iter client, std::vector<std::string> commands, MsgSy
 	commands[1] = commands[1];
 	std::string activeUsers = "~ Your Credentials ~";
 	info.message = blue + activeUsers + res;
+	info.channel = client->second.channel;
 	info.isCmd = true;
 	info.escapen = true;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
@@ -262,6 +285,7 @@ bool Commands::listAllInfo(iter client, std::vector<std::string> commands, MsgSy
 	info2.isCmd = true;
 	info2.escapen = false;
 	info2.message = msg;
+	info.channel = client->second.channel;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info2));
 
 	return (true);
@@ -276,14 +300,18 @@ bool Commands::listAllUsers(iter client, std::vector<std::string> commands, MsgS
 	commands[1] = commands[1];
 	std::string activeUsers = "~ " + Helper::itoa(msgSystem.Clients.size()) + (msgSystem.Clients.size() == 1 ? " active User ~" : " active Users ~");
 	info.message = blue + activeUsers + res;
+	info.channel = client->second.channel;
 	info.escapen = true;
 	info.isCmd = true;
 	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
 	for (it = msgSystem.Clients.begin(); it != msgSystem.Clients.end(); it++)
 	{
+		if (client->second.channel != it->second.channel)
+			continue;
 		UserInfo info;
 		info.message = it->second.textColor + it->second.username + res;
 		info.isCmd = true;
+		info.channel = client->second.channel;
 		info.escapen = false;
 		msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
 	}

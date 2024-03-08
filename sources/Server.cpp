@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 18:04:38 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 13:46:04 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/08 15:44:22 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,7 +79,7 @@ void Server::srvLstn()
 				int _clientSocket;
 				if ((_clientSocket = accept(_socket, (struct sockaddr *)&_ClientAddress, &_ClientAddrLen)) == -1)
 					throw(std::runtime_error("Error: accept"));
-				msgSystem.userJoined(_clientSocket);
+				msgSystem.userJoined(_clientSocket, 0);
 			}
 		}
 		msgSystem.recvSignal();

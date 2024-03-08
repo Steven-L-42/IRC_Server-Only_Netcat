@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:06:52 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 13:31:49 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/08 15:06:45 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,6 +23,7 @@ class Commands
 private:
 	typedef std::map<int, UserInfo>::iterator iter;
 	typedef bool (Commands::*CommandFunction)(iter client, std::vector<std::string>, MsgSystem &msgSystem);
+	bool joinChannel(iter client, std::vector<std::string> commands, MsgSystem &msgSystem);
 	bool showCommands(iter client, std::vector<std::string> commands, MsgSystem &msgSystem);
 	bool kickUser(iter client, std::vector<std::string> commands, MsgSystem &msgSystem);
 	bool changeColor(iter client, std::vector<std::string> commands, MsgSystem &msgSystem);
