@@ -4,9 +4,11 @@ CXX				:= c++
 
 CXXFLAGS		:= -Wall -Wextra -Werror -std=c++98
 
-SRCS			:= main.cpp Server.cpp
+SRCS			:= main.cpp Server.cpp Helper.cpp MsgSystem.cpp Commands.cpp
 
-OBJS			:= $(SRCS:.cpp=.o)
+SRCS_F			:= sources/
+
+OBJS			:= $(addprefix $(SRCS_F), $(SRCS:.cpp=.o))
 
 $(NAME):	$(OBJS)
 			@$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS)

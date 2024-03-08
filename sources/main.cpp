@@ -6,11 +6,11 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 14:57:09 by slippert          #+#    #+#             */
-/*   Updated: 2024/02/23 18:05:00 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/08 13:45:56 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Server.hpp"
+#include "../includes/Server.hpp"
 
 int main(int argc, char **argv)
 {
