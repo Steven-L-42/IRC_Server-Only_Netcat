@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:07:03 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 15:42:18 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/09 15:29:52 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -234,14 +234,14 @@ bool Commands::listAllColors(iter client, std::vector<std::string> commands, Msg
 	if (commands.size() != 1)
 		return (false);
 	iter it;
-	UserInfo info;
+	UserInfo infoHeader;
 	commands[1] = commands[1];
 	std::string activeUsers = "~ Colors from 1 - 255 ~";
-	info.message = blue + activeUsers + res;
-	info.channel = client->second.channel;
-	info.isCmd = true;
-	info.escapen = true;
-	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
+	infoHeader.message = blue + activeUsers + res;
+	infoHeader.channel = client->second.channel;
+	infoHeader.isCmd = true;
+	infoHeader.escapen = true;
+	msgSystem.MultiMessages.insert(std::make_pair(client->first, infoHeader));
 
 	std::string msg = "";
 	for (int i = 1; i <= 255; i++)
@@ -249,12 +249,12 @@ bool Commands::listAllColors(iter client, std::vector<std::string> commands, Msg
 		msg += std::string(b_empty + Helper::itoa(i)) + "m" + std::string(Helper::itoa(i)) + res + "\t";
 		if (i % 5 == 0)
 		{
-			UserInfo info;
-			info.isCmd = true;
-			info.escapen = false;
-			info.channel = client->second.channel;
-			info.message = msg;
-			msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
+			UserInfo infoText;
+			infoText.isCmd = true;
+			infoText.escapen = false;
+			infoText.channel = client->second.channel;
+			infoText.message = msg;
+			msgSystem.MultiMessages.insert(std::make_pair(client->first, infoText));
 			msg = "";
 		}
 	}
@@ -266,14 +266,14 @@ bool Commands::listAllInfo(iter client, std::vector<std::string> commands, MsgSy
 	if (commands.size() != 1)
 		return (false);
 	iter it;
-	UserInfo info;
+	UserInfo infoHeader;
 	commands[1] = commands[1];
 	std::string activeUsers = "~ Your Credentials ~";
-	info.message = blue + activeUsers + res;
-	info.channel = client->second.channel;
-	info.isCmd = true;
-	info.escapen = true;
-	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
+	infoHeader.message = blue + activeUsers + res;
+	infoHeader.channel = client->second.channel;
+	infoHeader.isCmd = true;
+	infoHeader.escapen = true;
+	msgSystem.MultiMessages.insert(std::make_pair(client->first, infoHeader));
 
 	std::string msg = "";
 
@@ -281,12 +281,12 @@ bool Commands::listAllInfo(iter client, std::vector<std::string> commands, MsgSy
 	msg += "Username: " + client->second.username + "\n";
 	msg += "Color: " + client->second.textColor + Helper::itoa(client->second.colNbr) + "\n" + res;
 
-	UserInfo info2;
-	info2.isCmd = true;
-	info2.escapen = false;
-	info2.message = msg;
-	info.channel = client->second.channel;
-	msgSystem.MultiMessages.insert(std::make_pair(client->first, info2));
+	UserInfo infoText;
+	infoText.isCmd = true;
+	infoText.escapen = false;
+	infoText.message = msg;
+	infoText.channel = client->second.channel;
+	msgSystem.MultiMessages.insert(std::make_pair(client->first, infoText));
 
 	return (true);
 }
@@ -296,24 +296,24 @@ bool Commands::listAllUsers(iter client, std::vector<std::string> commands, MsgS
 	if (commands.size() != 1)
 		return (false);
 	iter it;
-	UserInfo info;
+	UserInfo infoHeader;
 	commands[1] = commands[1];
 	std::string activeUsers = "~ " + Helper::itoa(msgSystem.Clients.size()) + (msgSystem.Clients.size() == 1 ? " active User ~" : " active Users ~");
-	info.message = blue + activeUsers + res;
-	info.channel = client->second.channel;
-	info.escapen = true;
-	info.isCmd = true;
-	msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
+	infoHeader.message = blue + activeUsers + res;
+	infoHeader.channel = client->second.channel;
+	infoHeader.escapen = true;
+	infoHeader.isCmd = true;
+	msgSystem.MultiMessages.insert(std::make_pair(client->first, infoHeader));
 	for (it = msgSystem.Clients.begin(); it != msgSystem.Clients.end(); it++)
 	{
 		if (client->second.channel != it->second.channel)
 			continue;
-		UserInfo info;
-		info.message = it->second.textColor + it->second.username + res;
-		info.isCmd = true;
-		info.channel = client->second.channel;
-		info.escapen = false;
-		msgSystem.MultiMessages.insert(std::make_pair(client->first, info));
+		UserInfo infoText;
+		infoText.message = it->second.textColor + it->second.username + res;
+		infoText.isCmd = true;
+		infoText.channel = client->second.channel;
+		infoText.escapen = false;
+		msgSystem.MultiMessages.insert(std::make_pair(client->first, infoText));
 	}
 	return (true);
 }

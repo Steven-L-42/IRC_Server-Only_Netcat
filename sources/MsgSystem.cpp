@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:32:05 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 16:00:55 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/09 15:28:13 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -61,7 +61,7 @@ void MsgSystem::recvSignal()
 			continue;
 
 		std::string userPrefix = _itClient->second.textColor + _itClient->second.username + " ➤ " + res;
-		std::cout << currentTime + userPrefix + std::string(buffer);
+		std::cout << "CH: " << _itClient->second.channel << " " << currentTime + userPrefix + std::string(buffer);
 		UserInfo info;
 		info.socket = _itClient->first;
 		info.username = _itClient->second.username;
@@ -161,7 +161,7 @@ void MsgSystem::userJoined(int clientSocket, int channel)
 	Clients[clientSocket] = newUser;
 	MultiMessages.insert(std::make_pair(clientSocket, newUser));
 
-	std::cout << newUser.message << std::endl;
+	std::cout << "CH: " << Helper::itoa(channel) << " " << newUser.message << std::endl;
 	if (channel != 0)
 	{
 		sendHistory(clientSocket, channel);
