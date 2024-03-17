@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:31:45 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 15:22:31 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/17 17:34:56 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,4 +40,6 @@ public:
 	void sendHistory(int clientSocket, int channel);
 	void removeUsers();
 	void userJoined(int clientSocket, int channel);
+	void userAnswer1(int clientSocket, int channel);
+	void userAnswer2(int clientSocket, int channel);
 };

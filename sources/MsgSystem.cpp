@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:32:05 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/09 15:28:13 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/17 17:59:39 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,8 +48,8 @@ void MsgSystem::recvSignal()
 			chatHistory.push_back(info);
 			continue;
 		}
-
 		buffer[bytes_received] = '\0';
+		std::cout << buffer;
 
 		if (bytes_received == 1 && buffer[0] == '\n')
 			continue;
@@ -80,7 +80,7 @@ void MsgSystem::sendSignal()
 	{
 		for (_itReceiver = Clients.begin(); _itReceiver != Clients.end(); _itReceiver++)
 		{
-			if (_itReceiver->second.socket == -1 || _itReceiver->second.channel != _itMessages->second.channel)
+			if (_itReceiver->second.socket == -1 || _itReceiver->second.channel != _itMessages->second.channel || _itReceiver->second.socket == 3)
 				continue;
 			if ((_itMessages->second.isCmd) && _itMessages->first != _itReceiver->first)
 				continue;
@@ -94,7 +94,6 @@ void MsgSystem::sendSignal()
 
 			if (message.back() != '\n')
 				message.append("\n");
-
 			ssize_t bytes_send = send(_itReceiver->first, message.c_str(), message.size(), 0);
 			if (bytes_send == -1)
 				std::cerr << "Error: send msg: " << message;
@@ -131,6 +130,79 @@ void MsgSystem::removeUsers()
 			itRemove = Clients.erase(itRemove);
 		else
 			++itRemove;
+	}
+}
+
+void MsgSystem::userAnswer1(int clientSocket, int channel)
+{
+	std::srand(time(0));
+	int rand = std::rand() % 256;
+
+	std::string capabilities = "multi-prefix";
+	std::string response = "CAP " + std::to_string(clientSocket) + " ACK :" + capabilities + "\r\n";
+	// send(_clientSocket, response.c_str(), response.size(), 0);
+	std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
+	UserInfo newUser;
+	if (Clients.find(clientSocket) != Clients.end())
+	{
+		newUser.username = Clients[clientSocket].username;
+		newUser.colNbr = Clients[clientSocket].colNbr;
+		newUser.textColor = Clients[clientSocket].textColor;
+	}
+	else
+	{
+		newUser.username = "Nick#" + Helper::itoa(clientSocket - 3);
+		newUser.colNbr = rand;
+		newUser.textColor = b_empty + Helper::itoa(rand) + std::string("m");
+	}
+	newUser.socket = clientSocket;
+	newUser.isCmd = false;
+	newUser.escapen = false;
+	newUser.channel = channel;
+	newUser.message = response;
+	Clients[clientSocket] = newUser;
+	MultiMessages.insert(std::make_pair(clientSocket, newUser));
+
+	if (channel != 0)
+	{
+		sendHistory(clientSocket, channel);
+		chatHistory.push_back(newUser);
+	}
+}
+
+void MsgSystem::userAnswer2(int clientSocket, int channel)
+{
+	std::srand(time(0));
+	int rand = std::rand() % 256;
+
+	std::string response = "001 " + Clients[clientSocket].username + " :Welcome to the IRC Server " + "ServerName" + "!\r\n";
+	// send(_clientSocket, response.c_str(), response.size(), 0);
+	std::string userPrefix = blue + std::string("Server") + " ➤ " + res;
+	UserInfo newUser;
+	if (Clients.find(clientSocket) != Clients.end())
+	{
+		newUser.username = Clients[clientSocket].username;
+		newUser.colNbr = Clients[clientSocket].colNbr;
+		newUser.textColor = Clients[clientSocket].textColor;
+	}
+	else
+	{
+		newUser.username = "Nick#" + Helper::itoa(clientSocket - 3);
+		newUser.colNbr = rand;
+		newUser.textColor = b_empty + Helper::itoa(rand) + std::string("m");
+	}
+	newUser.socket = clientSocket;
+	newUser.isCmd = false;
+	newUser.escapen = false;
+	newUser.channel = channel;
+	newUser.message = response;
+	Clients[clientSocket] = newUser;
+	MultiMessages.insert(std::make_pair(clientSocket, newUser));
+
+	if (channel != 0)
+	{
+		sendHistory(clientSocket, channel);
+		chatHistory.push_back(newUser);
 	}
 }
 

@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 18:04:42 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 13:46:17 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/17 15:40:26 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,8 @@ private:
 	struct sockaddr_in _ClientAddress;
 	socklen_t _ClientAddrLen;
 
+	static bool Signal;
+	static void SignalHandler(int signum);
 	void srvInit();
 	void srvLstn();
 

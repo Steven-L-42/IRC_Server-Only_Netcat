@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/02/23 18:04:38 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 15:44:22 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/17 17:57:06 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,8 +21,18 @@ Server::~Server()
 	close(_socket);
 }
 
+bool Server::Signal = false;
+void Server::SignalHandler(int signum)
+{
+	(void)signum;
+	std::cout << "killed Signal" << std::endl;
+	Server::Signal = true;
+}
+
 void Server::start()
 {
+	signal(SIGINT, Server::SignalHandler);
+	signal(SIGQUIT, Server::SignalHandler);
 	srvInit();
 	srvLstn();
 }
@@ -51,39 +61,49 @@ void Server::srvInit()
 		throw(std::runtime_error("Error: listen"));
 }
 
+std::string _serverName = "MyIRCServer";
+
 void Server::srvLstn()
 {
-	std::cout << blue << "~ Server is running ~ " << res << std::endl;
+	std::cout << blue << "~ Server is running | Port: " << _port << " ~ " << res << std::endl;
 	std::cout << std::endl;
 	fd_set read_set;
 	struct timeval timeout;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 10000;
 
-	forever
+	// msgSystem.userJoined(_socket, 0);
+	std::cout << _socket << std::endl;
+	while (Server::Signal == false)
 	{
-		timeout.tv_sec = 0;
-		timeout.tv_usec = 10000;
+
 		FD_ZERO(&read_set);
 		FD_SET(_socket, &read_set);
 
 		int ret;
-		if ((ret = select(_socket + 1, &read_set, NULL, NULL, &timeout)) == -1)
+		if ((ret = select(_socket + 1, &read_set, NULL, NULL, &timeout)) == -1 && Server::Signal == false)
 			throw(std::runtime_error("Error: select"));
-		else if (ret == 0)
+		else if (Server::Signal == false)
 		{
-		}
-		else
-		{
-			if (FD_ISSET(_socket, &read_set))
+			if (ret == 0)
 			{
-				_ClientAddrLen = sizeof(_ClientAddress);
-				int _clientSocket;
-				if ((_clientSocket = accept(_socket, (struct sockaddr *)&_ClientAddress, &_ClientAddrLen)) == -1)
-					throw(std::runtime_error("Error: accept"));
-				msgSystem.userJoined(_clientSocket, 0);
 			}
+			else
+			{
+				if (FD_ISSET(_socket, &read_set))
+				{
+					_ClientAddrLen = sizeof(_ClientAddress);
+					int _clientSocket;
+					if ((_clientSocket = accept(_socket, (struct sockaddr *)&_ClientAddress, &_ClientAddrLen)) == -1)
+						throw(std::runtime_error("Error: accept"));
+					msgSystem.userAnswer1(_clientSocket, 0);
+					msgSystem.userAnswer2(_clientSocket, 0);
+					// msgSystem.userJoined(_clientSocket, 0);
+				}
+			}
+			msgSystem.recvSignal();
+			msgSystem.sendSignal();
+			msgSystem.removeUsers();
 		}
-		msgSystem.recvSignal();
-		msgSystem.sendSignal();
-		msgSystem.removeUsers();
 	}
 }

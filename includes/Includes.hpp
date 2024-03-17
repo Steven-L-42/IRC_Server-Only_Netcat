@@ -6,7 +6,7 @@
 /*   By: slippert <slippert@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/03/08 11:22:15 by slippert          #+#    #+#             */
-/*   Updated: 2024/03/08 12:30:51 by slippert         ###   ########.fr       */
+/*   Updated: 2024/03/17 17:03:47 by slippert         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,8 @@
 #include <fcntl.h>
 
 #define ANSIESCAPE "\033[F\033[J"
+
+#define CRLF "\r\n"
 
 #define green "\033[32;1m"
 #define blue "\033[34;1m"

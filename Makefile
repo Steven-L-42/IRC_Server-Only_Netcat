@@ -12,7 +12,7 @@ OBJS			:= $(addprefix $(SRCS_F), $(SRCS:.cpp=.o))
 
 $(NAME):	$(OBJS)
 			@$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS)
-			@make clean
+
 
 all:		$(NAME)
 
