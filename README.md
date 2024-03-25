@@ -1,4 +1,4 @@
-# 42-ft_irc
+# IRC_Server-Only_Netcat
 
 ![ft_irc](https://raw.githubusercontent.com/ayogun/42-project-badges/main/badges/ft_ircm.png)
 
